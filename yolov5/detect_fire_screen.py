@@ -18,6 +18,7 @@ import subprocess
 import re
 import webbrowser
 from fractions import Fraction
+from mss import mss
 
 # Add YOLOv5 root directory to path
 FILE = Path(__file__).resolve()
@@ -144,17 +145,18 @@ def get_gps_from_image(image_path):
 
 def analyze_fire_severity(detections, img_shape, source_path=None):
     """
-    Analyze fire severity based on detection size and confidence
+    Analyze fire severity based on multiple factors including detection size, confidence, and number of detections
     Returns: severity level, message, and GPS coordinates
     """
     if len(detections) == 0:
         return "No fire detected", "Safe", None, None, None
     
     # Initialize variables
-    max_area = 0
+    total_area = 0
     max_conf = 0
-    fire_location = None
+    fire_locations = []
     detected_fire = False
+    fire_count = 0
     
     # Process detections
     for *xyxy, conf, cls in detections:
@@ -164,13 +166,15 @@ def analyze_fire_severity(detections, img_shape, source_path=None):
         # Check for any type of fire (classes 1,2,3,4)
         if cls_id in [1, 2, 3, 4]:  # safe fire, warning, danger, or smoke
             detected_fire = True
+            fire_count += 1
+            total_area += area
             
-        if area > max_area:
-            max_area = area
-            max_conf = conf
+            if conf > max_conf:
+                max_conf = conf
+            
             center_x = (xyxy[0] + xyxy[2]) / 2
             center_y = (xyxy[1] + xyxy[3]) / 2
-            fire_location = (center_x, center_y)
+            fire_locations.append((center_x, center_y))
     
     # Get GPS coordinates if any type of fire is detected
     gps_coords = None
@@ -189,15 +193,51 @@ def analyze_fire_severity(detections, img_shape, source_path=None):
     
     # Calculate relative area (percentage of image)
     img_area = img_shape[0] * img_shape[1]
-    relative_area = (max_area / img_area) * 100
+    relative_area = (total_area / img_area) * 100
     
-    # Determine severity based on area and confidence
-    if relative_area < 5 or max_conf < 0.5:
-        return "Safe", "Low risk - Small fire detected", gps_coords, fire_location, address
-    elif relative_area < 15 or max_conf < 0.7:
-        return "Warning", "Medium risk - Growing fire detected", gps_coords, fire_location, address
+    # Calculate fire spread factor (number of distinct fire locations)
+    spread_factor = len(fire_locations)
+    
+    # Determine severity based on multiple factors
+    severity_score = 0
+    
+    # Factor 1: Area coverage (0-3 points)
+    if relative_area < 5:
+        severity_score += 0
+    elif relative_area < 10:
+        severity_score += 1
+    elif relative_area < 20:
+        severity_score += 2
     else:
-        return "Danger", "High risk - Large fire detected!", gps_coords, fire_location, address
+        severity_score += 3
+    
+    # Factor 2: Number of fire detections (0-2 points)
+    if fire_count == 1:
+        severity_score += 0
+    elif fire_count <= 3:
+        severity_score += 1
+    else:
+        severity_score += 2
+    
+    # Factor 3: Confidence level (0-2 points)
+    if max_conf < 0.5:
+        severity_score += 0
+    elif max_conf < 0.7:
+        severity_score += 1
+    else:
+        severity_score += 2
+    
+    # Factor 4: Fire spread (0-1 point)
+    if spread_factor > 2:
+        severity_score += 1
+    
+    # Determine final severity based on total score (0-8 points)
+    if severity_score <= 2:
+        return "Safe", "Low risk - Small, contained fire detected", gps_coords, fire_locations[0] if fire_locations else None, address
+    elif severity_score <= 5:
+        return "Warning", "Medium risk - Growing fire with multiple detection points", gps_coords, fire_locations[0] if fire_locations else None, address
+    else:
+        return "Danger", "High risk - Large, spreading fire detected!", gps_coords, fire_locations[0] if fire_locations else None, address
 
 def print_iriun_setup_guide():
     """Print setup guide for Iriun Webcam"""
@@ -268,6 +308,19 @@ def find_iriun_camera():
         print(f"Error finding Iriun camera: {e}")
         return None
 
+def capture_screen():
+    """
+    Capture the entire screen using mss
+    Returns: numpy array of the screen capture
+    """
+    with mss() as sct:
+        monitor = sct.monitors[1]  # Primary monitor
+        screenshot = sct.grab(monitor)
+        img = np.array(screenshot)
+        # Convert from BGRA to BGR
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        return img
+
 def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size=640, conf_thres=0.25, save_dir=None):
     # Initialize
     device = select_device('')
@@ -283,7 +336,8 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
         print("\n=== Camera Setup ===")
         print("1. Use Iriun camera (phone)")
         print("2. Use local webcam")
-        choice = input("Enter your choice (1-2): ").strip()
+        print("3. Capture from screen")
+        choice = input("Enter your choice (1-3): ").strip()
         
         if choice == "1":
             # Try to find Iriun camera
@@ -294,6 +348,9 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
             else:
                 source = 0
                 print("\nUsing local webcam instead.")
+        elif choice == "3":
+            source = "screen"
+            print("\nUsing screen capture.")
         else:
             source = 0
             print("\nUsing local webcam.")
@@ -301,7 +358,9 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
     # Initialize video capture
     cap = None
     if isinstance(source, (int, str)):
-        if str(source).isdigit():
+        if source == "screen":
+            cap = None  # We'll handle screen capture differently
+        elif str(source).isdigit():
             # Local webcam
             cap = cv2.VideoCapture(int(source))
             # Set lower resolution for better performance
@@ -333,7 +392,10 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
                 return
     
     # Dataloader
-    dataset = LoadImages(source, img_size=img_size, stride=stride)
+    if source != "screen":
+        dataset = LoadImages(source, img_size=img_size, stride=stride)
+    else:
+        dataset = None
     
     # Initialize FPS calculation variables
     fps = 0
@@ -345,7 +407,21 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
     print("=============================\n")
     
     # Run inference
-    for path, im, im0s, vid_cap, s in dataset:
+    while True:
+        # Get frame
+        if source == "screen":
+            im0 = capture_screen()
+            # Resize for model input
+            im = cv2.resize(im0, (img_size, img_size))
+            im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+            im = np.ascontiguousarray(im)
+        else:
+            try:
+                path, im, im0s, vid_cap, s = next(iter(dataset))
+                im0 = im0s.copy()
+            except StopIteration:
+                break
+        
         # Calculate FPS
         frame_count += 1
         if frame_count >= 30:  # Update FPS every 30 frames
@@ -368,14 +444,12 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
         
         # Process predictions
         for i, det in enumerate(pred):
-            im0 = im0s.copy()
-            
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
                 
                 # Analyze fire severity
-                severity, message, gps_coords, fire_location, address = analyze_fire_severity(det, im0.shape, path)
+                severity, message, gps_coords, fire_location, address = analyze_fire_severity(det, im0.shape, None)
                 
                 # Add severity text
                 cv2.putText(im0, f"Status: {severity}", (10, 30), 
@@ -387,24 +461,11 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
                 cv2.putText(im0, f"FPS: {fps:.1f}", (10, 110),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 
-                # Add GPS coordinates if available
-                if gps_coords:
-                    lat, lon = gps_coords
-                    gps_text = f"GPS: {lat:.6f}, {lon:.6f}"
-                    cv2.putText(im0, gps_text, (10, 150),
-                              cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                    
-                    # Create Google Maps link
-                    maps_link = f"https://www.google.com/maps?q={lat},{lon}"
-                    print(f"\nFire detected! View location on Google Maps: {maps_link}")
-                    if address:
-                        print(f"Address: {address}")
-                
                 # Add fire location in image coordinates
                 if fire_location:
                     x, y = fire_location
                     cv2.circle(im0, (int(x), int(y)), 5, (0, 0, 255), -1)
-                    cv2.putText(im0, f"Fire at: ({int(x)}, {int(y)})", (10, 190),
+                    cv2.putText(im0, f"Fire at: ({int(x)}, {int(y)})", (10, 150),
                               cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 
                 # Write results
@@ -416,7 +477,16 @@ def run_detection(weights='runs/train/exp25/weights/best.pt', source=0, img_size
             
             # Save results if save_dir is specified
             if save_dir:
-                if isinstance(source, (int, str)) and str(source).isdigit() or source.endswith('.mp4'):  # Video
+                if source == "screen":
+                    if not hasattr(run_detection, 'video_writer'):
+                        run_detection.video_writer = cv2.VideoWriter(
+                            f'{save_dir}/screen_output.mp4',
+                            cv2.VideoWriter_fourcc(*'mp4v'),
+                            30.0,  # FPS for screen capture
+                            (im0.shape[1], im0.shape[0])
+                        )
+                    run_detection.video_writer.write(im0)
+                elif isinstance(source, (int, str)) and str(source).isdigit() or source.endswith('.mp4'):  # Video
                     if not hasattr(run_detection, 'video_writer'):
                         run_detection.video_writer = cv2.VideoWriter(
                             f'{save_dir}/output.mp4',
