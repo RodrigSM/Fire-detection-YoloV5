@@ -40,6 +40,40 @@ Os incêndios representam uma ameaça significativa ao meio ambiente, à vida hu
 - PyTorch
 - OpenCV
 - Dependências do YOLOv5 (ver `yolov5/requirements.txt`)
+- MSS (para captura de tela)
+- Geopy (para geolocalização)
+- ExifRead (para extração de metadados de imagens)
+
+## 📦 Instalação das Dependências
+
+```bash
+# Criar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# Instalar dependências principais
+pip install -r yolov5/requirements.txt
+
+# Instalar dependências adicionais
+pip install mss geopy exifread geocoder
+```
+
+## 🔧 Configuração do Ambiente
+
+1. **Câmera do Smartphone (Opcional):**
+   - Instale o aplicativo Iriun Webcam no seu smartphone
+   - Certifique-se que o smartphone e o computador estão na mesma rede WiFi
+   - O script detectará automaticamente a câmera quando disponível
+
+2. **Captura de Tela:**
+   - O script `detect_fire_screen.py` requer permissões de acesso à tela
+   - Em sistemas Linux, pode ser necessário configurar permissões X11
+   - Em Windows, certifique-se que o Python tem permissões de administrador
+
+3. **Geolocalização:**
+   - Para extração de GPS de imagens, certifique-se que as imagens contêm metadados EXIF
+   - Para detecção de localização em tempo real, uma conexão com internet é necessária
 
 ## 🚀 Como Utilizar
 
@@ -51,13 +85,13 @@ cd Fire-detection-YoloV5/yolov5-fire-detection
 ```
 
 ### 2. Instalar dependências
-
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate     # Windows
 
 pip install -r yolov5/requirements.txt
+pip install mss geopy exifread geocoder
 ```
 
 ### 3. Preparar o dataset
@@ -68,21 +102,10 @@ pip install -r yolov5/requirements.txt
 ### 4. Treinar o modelo
 
 ```bash
-python yolov5/train.py --img 640 --batch 16 --epochs 50 --data fire.yaml --weights yolov5s.pt --project results
+python train.py --data data.yaml --weights yolov5s.pt --img 640 --batch-size 32 --device 0 --epochs 100
 ```
 
-### 5. Fazer inferência
-
-**Imagem:**
-```bash
-python yolov5/detect_fire.py --weights model/yolov5s_best.pt --source path/to/image.jpg
-```
-**Vídeo:**
-```bash
-python yolov5/detect_fire.py --weights model/yolov5s_best.pt --source input.mp4
-```
-
-### 6. Visualizar resultados
+### 5. Visualizar resultados
 
 - Detecções: pasta `results/`
 - Métricas: gráficos em `results/`
@@ -92,21 +115,6 @@ python yolov5/detect_fire.py --weights model/yolov5s_best.pt --source input.mp4
 - **Monitorização florestal:** Drones ou câmaras fixas a detetar incêndios em tempo real.
 - **Ambientes industriais:** Identificação de focos de fogo em fábricas e armazéns.
 - **Cidades inteligentes:** Integração com sistemas de segurança urbana.
-
-## 📊 Resultados Esperados
-
-- Deteção rápida e precisa de incêndios em diferentes cenários.
-- Redução de falsos positivos com ajuste de hiperparâmetros e inclusão de imagens negativas.
-- Facilidade de adaptação para outros tipos de deteção (ex: fumo, explosões).
-
-## 🚧 Limitações e Trabalhos Futuros
-
-- **Falsos positivos:** Luzes vermelhas ou reflexos podem ser confundidos com fogo.
-- **Generalização:** O modelo pode necessitar de mais dados para funcionar em ambientes muito diferentes.
-- **Trabalhos futuros:** 
-  - Adicionar deteção de fumo.
-  - Implementar notificação automática (e-mail, SMS).
-  - Testar em tempo real com câmaras IP.
 
 ## 🗂 Estrutura do Projeto
 
@@ -133,25 +141,63 @@ yolov5-fire-detection/
 - `fire.yaml` - Configuração do dataset customizado
 - `train.ipynb` - Notebook para experimentação e análise
 
+## 🔥 Scripts de Deteção
+
+### detect_fire.py
+Este script implementa a deteção de incêndios em tempo real com as seguintes funcionalidades:
+- Suporte para múltiplas fontes de entrada (webcam local, câmera IP, vídeos, imagens)
+- Integração com Iriun Webcam para usar câmera do smartphone
+- Análise de severidade do incêndio baseada em múltiplos fatores
+- Deteção de GPS e localização do fogo
+- Interface visual com informações em tempo real (FPS, status, coordenadas)
+- Opção de salvar resultados em vídeo ou imagem
+
+### detect_fire_screen.py
+Uma versão estendida do detect_fire.py que adiciona:
+- Captura de tela em tempo real para deteção de incêndios
+- Análise de severidade aprimorada considerando:
+  - Área total coberta pelo fogo
+  - Número de detecções de fogo
+  - Nível de confiança das detecções
+  - Fator de propagação do fogo
+- Sistema de pontuação para classificação de risco
+- Suporte para múltiplos monitores
+- Otimização de performance para captura de tela
+
+Para usar estes scripts:
+```bash
+# Para deteção normal (câmera/vídeo/imagem)
+python .\detect_fire.py --source 0
+
+# Para deteção na tela
+python .\detect_fire_screen.py --source 0
+```
+
 ## 📚 Referências
 
 - [YOLOv5 - Ultralytics](https://github.com/ultralytics/yolov5)
 - [Documentação oficial do YOLOv5](https://docs.ultralytics.com/)
 - [PyTorch](https://pytorch.org/)
 - [Fire Dataset (Kaggle)](https://www.kaggle.com/datasets/atulyakumar98/fire-dataset)
-- [Artigo: Real-Time Fire Detection using YOLO](https://arxiv.org/abs/2106.00656)
+- [Repositório Fire Detection](https://github.com/spacewalk01/yolov5-fire-detection)
 
 ## 📈 Comparação de Resultados: Dataset Pequeno vs. Dataset Grande
 
 Abaixo, apresento uma comparação entre dois treinamentos realizados:
 
-- **Treinamento 1:** Apenas 100 imagens (exemplo de resultado abaixo)
-- **Treinamento 2:** 7.800 imagens (exemplo de resultado abaixo)
+- **Treinamento 1 (exp9):** 100 imagens
+- **Treinamento 2 (exp26):** 7.800 imagens
 
-### 🔹 Exemplo de Resultados do Último Treino
+### 🔹 Resultados do Treinamento com 100 Imagens (exp9)
 
 <p align="center">
-  <img src="yolov5/runs/train/exp26/results.png" alt="Resultados de treinamento" width="800"/>
+  <img src="yolov5/runs/train/exp9/results.png" alt="Resultados do treinamento com 100 imagens" width="800"/>
+</p>
+
+### 🔹 Resultados do Treinamento com 7.800 Imagens (exp26)
+
+<p align="center">
+  <img src="yolov5/runs/train/exp26/results.png" alt="Resultados do treinamento com 7.800 imagens" width="800"/>
 </p>
 
 - **Observações:**  
@@ -173,12 +219,3 @@ O aumento do número de imagens no dataset resultou num modelo muito mais robust
 
 Este projeto está sob a licença MIT. Veja o ficheiro [LICENSE](LICENSE) para mais detalhes.
 
-## 🙏 Agradecimentos
-
-- Professores e colegas da universidade pelo apoio e feedback.
-- Comunidade open-source de visão computacional.
-- Ultralytics pelo desenvolvimento do YOLOv5.
-
-<p align="center">
-  <b>🔥 Deteção de incêndio rápida, eficiente e open-source! 🔥</b>
-</p>
