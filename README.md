@@ -4,26 +4,19 @@
   <img src="results/result.gif" alt="Exemplo de Detecção de Incêndio" width="600"/>
 </p>
 
+<p align="center">
+  <img src="yolov5/fogo.png" alt="Exemplo de Detecção de Incêndio" width="800"/>
+</p>
+
 ## 📝 Resumo
 
 Este projeto apresenta uma solução baseada em Deep Learning para a deteção automática de incêndios em imagens e vídeos, utilizando o modelo YOLOv5. O sistema é capaz de identificar focos de fogo em tempo real, sendo aplicável em cenários de monitorização florestal, industrial, urbano, entre outros.
-
-## 💡 Motivação
-
-Os incêndios representam uma ameaça significativa ao meio ambiente, à vida humana e à infraestrutura. A deteção precoce é fundamental para minimizar danos e salvar vidas. Soluções automáticas baseadas em visão computacional podem acelerar a resposta a emergências e reduzir custos operacionais.
 
 ## 🎯 Objetivos
 
 - Detetar focos de incêndio em imagens e vídeos com elevada precisão e rapidez.
 - Facilitar a integração do sistema em câmaras de monitorização e drones.
 - Disponibilizar um pipeline completo, do treino à inferência, para uso académico e prático.
-
-## ✨ Diferenciais do Projeto
-
-- **Baseado em YOLOv5:** Um dos modelos mais rápidos e precisos para deteção de objetos.
-- **Customização fácil:** Permite treinar com diferentes conjuntos de dados e ajustar hiperparâmetros.
-- **Pipeline completo:** Inclui scripts para treino, inferência, avaliação e visualização de resultados.
-- **Documentação detalhada:** README estruturado para facilitar o uso e a compreensão do projeto.
 
 ## ⚙️ Metodologia
 
@@ -44,29 +37,16 @@ Os incêndios representam uma ameaça significativa ao meio ambiente, à vida hu
 - Geopy (para geolocalização)
 - ExifRead (para extração de metadados de imagens)
 
-## 📦 Instalação das Dependências
-
-```bash
-# Criar ambiente virtual
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
-# Instalar dependências principais
-pip install -r yolov5/requirements.txt
-
-# Instalar dependências adicionais
-pip install mss geopy exifread geocoder
-```
-
 ## 🔧 Configuração do Ambiente
 
 1. **Câmera do Smartphone (Opcional):**
+
    - Instale o aplicativo Iriun Webcam no seu smartphone
    - Certifique-se que o smartphone e o computador estão na mesma rede WiFi
    - O script detectará automaticamente a câmera quando disponível
 
 2. **Captura de Tela:**
+
    - O script `detect_fire_screen.py` requer permissões de acesso à tela
    - Em sistemas Linux, pode ser necessário configurar permissões X11
    - Em Windows, certifique-se que o Python tem permissões de administrador
@@ -85,11 +65,8 @@ cd Fire-detection-YoloV5/yolov5-fire-detection
 ```
 
 ### 2. Instalar dependências
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
 
+```bash
 pip install -r yolov5/requirements.txt
 pip install mss geopy exifread geocoder
 ```
@@ -116,6 +93,13 @@ python train.py --data data.yaml --weights yolov5s.pt --img 640 --batch-size 32 
 - **Ambientes industriais:** Identificação de focos de fogo em fábricas e armazéns.
 - **Cidades inteligentes:** Integração com sistemas de segurança urbana.
 
+## 🧩 Principais Ficheiros
+
+- `yolov5/` - Código original do YOLOv5 (PyTorch)
+- `yolov5/detect_fire.py` - Script customizado para deteção de fogo
+- `yolov5/runs/train/exp26` - Modelo treinado para deteção de incêndio
+- `fire.yaml` - Configuração do dataset customizado
+
 ## 🗂 Estrutura do Projeto
 
 ```
@@ -125,26 +109,18 @@ yolov5-fire-detection/
 ├── datasets/              # (Ignorado pelo git) Base de dados de treino/teste
 ├── model/                 # Modelos treinados (.pt)
 ├── results/               # Resultados de inferência e métricas
-├── input.mp4              # Exemplo de vídeo de entrada
 ├── fire.yaml              # Configuração do dataset customizado
 ├── data.yaml              # Configuração do dataset padrão
 ├── train.ipynb            # Notebook de treino e avaliação
-├── README.md              # Este ficheiro
 └── ...                    # Outros ficheiros e scripts
 ```
-
-## 🧩 Principais Ficheiros
-
-- `yolov5/` - Código original do YOLOv5 (PyTorch)
-- `yolov5/detect_fire.py` - Script customizado para deteção de fogo
-- `model/yolov5s_best.pt` - Modelo treinado para deteção de incêndio
-- `fire.yaml` - Configuração do dataset customizado
-- `train.ipynb` - Notebook para experimentação e análise
 
 ## 🔥 Scripts de Deteção
 
 ### detect_fire.py
+
 Este script implementa a deteção de incêndios em tempo real com as seguintes funcionalidades:
+
 - Suporte para múltiplas fontes de entrada (webcam local, câmera IP, vídeos, imagens)
 - Integração com Iriun Webcam para usar câmera do smartphone
 - Análise de severidade do incêndio baseada em múltiplos fatores
@@ -153,7 +129,9 @@ Este script implementa a deteção de incêndios em tempo real com as seguintes 
 - Opção de salvar resultados em vídeo ou imagem
 
 ### detect_fire_screen.py
+
 Uma versão estendida do detect_fire.py que adiciona:
+
 - Captura de tela em tempo real para deteção de incêndios
 - Análise de severidade aprimorada considerando:
   - Área total coberta pelo fogo
@@ -165,6 +143,7 @@ Uma versão estendida do detect_fire.py que adiciona:
 - Otimização de performance para captura de tela
 
 Para usar estes scripts:
+
 ```bash
 # Para deteção normal (câmera/vídeo/imagem)
 python .\detect_fire.py --source 0
@@ -200,7 +179,7 @@ Abaixo, apresento uma comparação entre dois treinamentos realizados:
   <img src="yolov5/runs/train/exp26/results.png" alt="Resultados do treinamento com 7.800 imagens" width="800"/>
 </p>
 
-- **Observações:**  
+- **Observações:**
   - O gráfico acima mostra as principais métricas do treino, como perdas (loss), precisão, recall e mAP.
   - Com mais imagens no dataset, as curvas tendem a ser mais suaves e os resultados mais estáveis.
   - O modelo treinado com mais dados apresenta melhor generalização e desempenho.
@@ -218,4 +197,3 @@ O aumento do número de imagens no dataset resultou num modelo muito mais robust
 ## 📄 Licença
 
 Este projeto está sob a licença MIT. Veja o ficheiro [LICENSE](LICENSE) para mais detalhes.
-
